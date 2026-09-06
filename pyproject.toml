@@ -1,16 +1,25 @@
 [project]
 name = "call-me-maybe"
 version = "0.1.0"
-description = "Constrained decoding of LLM output into schema-valid function calls"
+description = "Constrained-decoding function calling with a small LLM"
 readme = "README.md"
 authors = [
-    { name = "ASMAE MOUNCIF" }
+    { name = "ASMAE MOUNCIF", email = "158608762+AsmaeMouncif@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
+    # [NEW] the provided SDK takes a device_map="auto" path on CUDA machines,
+    # which transformers refuses to run without accelerate installed
+    "accelerate>=1.0.0",
     "llm-sdk",
+    "numpy>=2.5.2",
     "pydantic>=2.13.4",
 ]
+
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
@@ -18,23 +27,16 @@ dev = [
     "mypy>=2.3.1",
 ]
 
-# This is an application, not a library, so there is nothing to build or
-# install. Without this, uv builds the project on every command and leaves a
-# stray src/call_me_maybe.egg-info directory behind.
-[tool.uv]
-package = false
+[tool.uv.workspace]
+members = [
+    "llm_sdk",
+]
 
-# The SDK lives in this repository. A plain path source is enough; a uv
-# workspace is only needed when several packages are developed together.
 [tool.uv.sources]
-llm-sdk = { path = "llm_sdk", editable = true }
+llm-sdk = { workspace = true, editable = true }
 
-# mypy cannot see inside the SDK's own package, so point it at the directory
-# and do not type-check the SDK itself.
-[tool.mypy]
-mypy_path = "llm_sdk"
-
+# [NEW] `mypy .` must still resolve llm_sdk, but the provided SDK is not
+# ours to fix, so its own errors are ignored.
 [[tool.mypy.overrides]]
-module = ["llm_sdk", "llm_sdk.*"]
-follow_imports = "silent"
+module = "llm_sdk.*"
 ignore_errors = true

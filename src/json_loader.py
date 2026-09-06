@@ -8,6 +8,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def load_json_file(path: str) -> Any:
+    """Read and parse a JSON file, reporting any failure clearly."""
     try:
         with open(path, "r", encoding="utf-8") as handle:
             content = handle.read()
@@ -30,6 +31,7 @@ def load_json_file(path: str) -> Any:
 
 
 def parse_models(raw_data: Any, model: Type[T], source: str) -> list[T]:
+    """Validate a JSON array into a list of pydantic models."""
     if not isinstance(raw_data, list):
         raise InputError(f"Expected a JSON array in {source}")
     result: list[T] = []

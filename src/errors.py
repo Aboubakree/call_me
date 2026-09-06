@@ -1,18 +1,18 @@
 class CallMeMaybeError(Exception):
-    pass
+    """Base class for every error this project raises."""
 
 
 class InputError(CallMeMaybeError):
-    pass
+    """An input file is missing, unreadable, or malformed."""
 
 
 class VocabError(CallMeMaybeError):
-    pass
+    """The tokenizer vocabulary could not be loaded."""
 
 
 class GenerationError(CallMeMaybeError):
-    pass
+    """The model or the decoder could not produce a valid call."""
 
 
 class OutputError(CallMeMaybeError):
-    pass
+    """The result file could not be written."""

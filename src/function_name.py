@@ -1,13 +1,10 @@
-import json
-
 from llm_sdk import Small_LLM_Model
-
-from .errors import GenerationError
 from .models import FunctionDefinition
 from .prompt import build_prompt
 
 
 def get_function_names(functions: list[FunctionDefinition]) -> list[str]:
+    """Return every callable name plus the NO_FUNCTION fallback."""
     names = []
     for function in functions:
         names.append(function.name)
@@ -18,13 +15,16 @@ def get_function_names(functions: list[FunctionDefinition]) -> list[str]:
 def build_function_candidate(
     model: Small_LLM_Model, function_name: str
 ) -> list[int]:
+    """Encode the full JSON envelope naming one function."""
     text = '{"name": "' + function_name + '"}'
-    return [int(x) for x in model.encode(text).squeeze(0).tolist()]
+    ids: list[int] = model.encode(text).squeeze(0).tolist()  # [MOD] typed
+    return ids
 
 
 def build_function_candidates(
     model: Small_LLM_Model, function_names: list[str]
 ) -> list[list[int]]:
+    """Encode one candidate token sequence per function name."""
     candidates = []
     for function_name in function_names:
         candidate = build_function_candidate(model, function_name)
@@ -35,6 +35,7 @@ def build_function_candidates(
 def get_valid_next_tokens(
     candidates: list[list[int]], generated_ids: list[int]
 ) -> set[int]:
+    """Return the tokens that keep at least one candidate reachable."""
     valid_token_ids: set[int] = set()
     for candidate in candidates:
         prefix_length = len(generated_ids)
@@ -45,14 +46,29 @@ def get_valid_next_tokens(
 
 
 def select_next_token(logits: list[float], valid_tokens: set[int]) -> int:
+    """Return the highest-scoring token among `valid_tokens`."""
     return max(valid_tokens, key=lambda token_id: logits[token_id])
 
 
+# [NEW] Look a name up in the definitions; None means NO_FUNCTION.
+def find_function(
+    functions: list[FunctionDefinition], name: str
+) -> FunctionDefinition | None:
+    """Return the definition called `name`, or None if there is none."""
+    for function in functions:
+        if function.name == name:
+            return function
+    return None
+
+
+# [MOD] Returns the bare function name instead of the raw JSON envelope, and
+# skips the forward pass whenever only one token is possible.
 def generate_function_name(
     model: Small_LLM_Model, prompt: str, functions: list[FunctionDefinition]
 ) -> str:
-    prompt_text = build_prompt(functions, prompt)
-    input_ids = [int(x) for x in model.encode(prompt_text).squeeze(0).tolist()]
+    """Let the LLM choose one function, constrained to the known names."""
+    text = build_prompt(functions, prompt)
+    input_ids = model.encode(text).squeeze(0).tolist()
     function_names = get_function_names(functions)
     candidates = build_function_candidates(model, function_names)
     generated_ids: list[int] = []
@@ -60,11 +76,8 @@ def generate_function_name(
         valid_tokens = get_valid_next_tokens(candidates, generated_ids)
         if not valid_tokens:
             break
-        if len(valid_tokens) == 1:
-            # Every remaining candidate agrees on the next token, so there is
-            # nothing to decide. Skipping the forward pass here removes about
-            # 88 of the 99 passes a full run would otherwise make.
-            next_token = next(iter(valid_tokens))
+        if len(valid_tokens) == 1:  # [NEW] forced token, no need to ask
+            next_token = valid_tokens.pop()
         else:
             logits = model.get_logits_from_input_ids(input_ids)
             next_token = select_next_token(logits, valid_tokens)
@@ -72,15 +85,4 @@ def generate_function_name(
         input_ids.append(next_token)
         if generated_ids in candidates:
             break
-    return str(model.decode(generated_ids))
-
-
-def extract_function_name(raw_snippet: str) -> str:
-    """Parse the '{"name": "..."}' snippet from generate_function_name."""
-    try:
-        data = json.loads(raw_snippet)
-        return str(data["name"])
-    except (json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise GenerationError(
-            f"Could not extract a function name from: {raw_snippet!r}"
-        ) from exc
+    return function_names[candidates.index(generated_ids)]

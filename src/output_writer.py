@@ -7,6 +7,7 @@ from .models import FunctionCallResult
 def write_results(
     results: list[FunctionCallResult], output_path: str
 ) -> None:
+    """Write the results as a JSON array, creating the directory."""
     path = Path(output_path)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
