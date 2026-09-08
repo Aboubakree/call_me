@@ -1,9 +1,16 @@
+"""Exceptions raised across the project.
+
+They share a base class so the entry point can catch every expected
+failure in one place and report it without a traceback.
+"""
+
+
 class CallMeMaybeError(Exception):
     """Base class for every error this project raises."""
 
 
 class InputError(CallMeMaybeError):
-    """An input file is missing, unreadable, or malformed."""
+    """An input file is missing, unreadable or malformed."""
 
 
 class VocabError(CallMeMaybeError):
@@ -11,8 +18,8 @@ class VocabError(CallMeMaybeError):
 
 
 class GenerationError(CallMeMaybeError):
-    """The model or the decoder could not produce a valid call."""
+    """The model or a decoder could not produce a valid call."""
 
 
 class OutputError(CallMeMaybeError):
-    """The result file could not be written."""
+    """The results file could not be written."""

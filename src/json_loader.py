@@ -1,6 +1,10 @@
+"""Reading and validating the JSON input files."""
+
 import json
 from typing import Any, Type, TypeVar
+
 from pydantic import BaseModel, ValidationError
+
 from .errors import InputError
 
 
@@ -8,7 +12,17 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def load_json_file(path: str) -> Any:
-    """Read and parse a JSON file, reporting any failure clearly."""
+    """Read a JSON file and parse it.
+
+    Args:
+        path: Path to the file to read.
+
+    Returns:
+        The parsed JSON content.
+
+    Raises:
+        InputError: If the file is missing, unreadable, empty or malformed.
+    """
     try:
         with open(path, "r", encoding="utf-8") as handle:
             content = handle.read()
@@ -31,7 +45,19 @@ def load_json_file(path: str) -> Any:
 
 
 def parse_models(raw_data: Any, model: Type[T], source: str) -> list[T]:
-    """Validate a JSON array into a list of pydantic models."""
+    """Validate a JSON array into a list of pydantic models.
+
+    Args:
+        raw_data: Parsed JSON, expected to be an array of objects.
+        model: Model class each item must satisfy.
+        source: File the data came from, used in error messages.
+
+    Returns:
+        One validated model per item.
+
+    Raises:
+        InputError: If the data is not an array of matching objects.
+    """
     if not isinstance(raw_data, list):
         raise InputError(f"Expected a JSON array in {source}")
     result: list[T] = []

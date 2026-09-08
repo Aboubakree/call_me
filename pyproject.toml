@@ -8,8 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    # [NEW] the provided SDK takes a device_map="auto" path on CUDA machines,
-    # which transformers refuses to run without accelerate installed
+    # required by llm_sdk on CUDA machines, where it uses device_map="auto"
     "accelerate>=1.0.0",
     "llm-sdk",
     "numpy>=2.5.2",
@@ -35,8 +34,7 @@ members = [
 [tool.uv.sources]
 llm-sdk = { workspace = true, editable = true }
 
-# [NEW] `mypy .` must still resolve llm_sdk, but the provided SDK is not
-# ours to fix, so its own errors are ignored.
+# the provided SDK must stay importable for `mypy .` but is not ours to fix
 [[tool.mypy.overrides]]
 module = "llm_sdk.*"
 ignore_errors = true

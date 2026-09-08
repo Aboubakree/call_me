@@ -1,3 +1,5 @@
+"""Entry point: read the input files, generate the calls, write the results."""
+
 import sys
 
 from llm_sdk import Small_LLM_Model
@@ -11,7 +13,15 @@ from .output_writer import write_results
 
 
 def parse_args() -> tuple[str, str, str]:
-    """Read the optional --functions_definition/--input/--output flags."""
+    """Read the optional path arguments from the command line.
+
+    Returns:
+        The functions definition, input and output paths, each falling back
+        to its default under data/.
+
+    Raises:
+        InputError: If a known flag is given without a value.
+    """
     functions_definition = "data/input/functions_definition.json"
     input_file = "data/input/function_calling_tests.json"
     output = "data/output/function_calling_results.json"
@@ -30,23 +40,39 @@ def parse_args() -> tuple[str, str, str]:
     return functions_definition, input_file, output
 
 
-# [NEW] Loading pulls the model from the hub, so failures are turned into a
-# clear message instead of a traceback.
 def load_model() -> Small_LLM_Model:
-    """Load the LLM, reporting any failure as a project error."""
+    """Load the LLM, reporting any failure as a project error.
+
+    Returns:
+        The ready-to-use SDK wrapper.
+
+    Raises:
+        GenerationError: If the model cannot be downloaded or loaded.
+    """
     try:
         return Small_LLM_Model()
     except Exception as exc:
         raise GenerationError(f"Could not load the model: {exc}") from exc
 
 
-# [NEW] The generation loop; previously main() built an empty result list.
 def run(
     model: Small_LLM_Model,
     functions: list[FunctionDefinition],
     prompts: list[PromptEntry],
 ) -> list[FunctionCallResult]:
-    """Turn every prompt into one function call."""
+    """Turn every prompt into one function call.
+
+    A prompt that cannot be answered is reported on the error stream and
+    skipped, so one bad case never costs the whole run.
+
+    Args:
+        model: SDK wrapper used to encode and score.
+        functions: Definitions the model may choose between.
+        prompts: Requests to answer.
+
+    Returns:
+        One result per prompt that could be answered.
+    """
     results: list[FunctionCallResult] = []
     for entry in prompts:
         try:
@@ -66,10 +92,8 @@ def run(
     return results
 
 
-# [MOD] Everything now runs inside one handler, so a bad input file or a
-# failed download prints a message and exits 1 instead of crashing.
 def main() -> None:
-    """Load the inputs, generate every call, and write the results."""
+    """Run the whole pipeline, reporting any failure without a traceback."""
     try:
         functions_definition, input_file, output = parse_args()
         raw_functions = load_json_file(functions_definition)
